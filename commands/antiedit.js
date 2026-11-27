@@ -25,11 +25,15 @@ function saveConfig(sock, config) {
 // ═══════════════════════════════════════════════════════════
 async function handleAntieditCommand(sock, chatId, message, match) {
     try {
+        // 🛡️ ownerGuard already handles ⛔ reaction on denial
         if (!(await ownerGuard(sock, chatId, message))) return;
+
+        await addReaction(sock, message, '✏️'); // initial react
         match = String(match || '').trim().toLowerCase();
         const config = loadConfig(sock);
 
         if (!match) {
+            await addReaction(sock, message, '📋');
             return sock.sendMessage(chatId, {
                 text: vipBox('✏️ 𝙰𝙽𝚃𝙸𝙴𝙳𝙸𝚃 𝙼𝙴𝙽𝚄', [
                     `📊 𝚂𝚝𝚊𝚝𝚞𝚜 : ${config.enabled ? '🟢 𝙾𝙽' : '🔴 𝙾𝙵𝙵'}`,
@@ -64,16 +68,24 @@ async function handleAntieditCommand(sock, chatId, message, match) {
         }, { quoted: message });
     } catch (err) {
         console.error('Antiedit command error:', err);
+        await addReaction(sock, message, '❌');
+        return sock.sendMessage(chatId, {
+            text: vipBox('❌ 𝙴𝚁𝚁𝙾𝚁', [F('Error processing command.')]),
+            ...channelInfo
+        }, { quoted: message }).catch(() => {});
     }
 }
 
 async function handleAntieditSetCommand(sock, chatId, message, match) {
     try {
         if (!(await ownerGuard(sock, chatId, message))) return;
+
+        await addReaction(sock, message, '⚙️'); // initial react
         match = String(match || '').trim().toLowerCase();
         const config = loadConfig(sock);
 
         if (!VALID_TARGETS.has(match)) {
+            await addReaction(sock, message, '❌');
             return sock.sendMessage(chatId, {
                 text: vipBox('✏️ 𝙰𝙽𝚃𝙸𝙴𝙳𝙸𝚃 𝚂𝙴𝚃', [
                     `📤 𝙲𝚞𝚛𝚛𝚎𝚗𝚝 : ${modeLabel(config.mode)}`,
@@ -96,6 +108,7 @@ async function handleAntieditSetCommand(sock, chatId, message, match) {
         }, { quoted: message });
     } catch (err) {
         console.error('Antiedit set command error:', err);
+        await addReaction(sock, message, '❌');
     }
 }
 
@@ -164,7 +177,6 @@ async function handleMessageEdit(sock, message) {
     const pm = message?.message?.protocolMessage ||
         message?.message?.editedMessage?.message?.protocolMessage;
     if (!pm || pm.type !== 14 || !pm.editedMessage) return false;
-    // pm.key.fromMe is from the sender's point of view, so use the outer key
     const key = {
         id: pm.key?.id,
         remoteJid: message.key.remoteJid,
